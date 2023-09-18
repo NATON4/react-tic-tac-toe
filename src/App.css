@@ -1,38 +1,123 @@
 .App {
-  text-align: center;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+h1 {
+    font-size: 7vh;
+    margin: 0 auto;
+    background-color: #CA4246;
+    background-image: linear-gradient(
+            45deg,
+            #0fa 47.5%,
+            #0fa 47.5%,
+            #f09 51%,
+            #f09 90%);
+    background-size: 100%;
+    background-repeat: repeat;
+
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+.winner-info {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+
+    color: black;
+    text-shadow: 0 0 7px #fff,
+    0 0 10px #fff,
+    0 0 20px #fff,
+    0 0 35px #fff,
+    0 0 45px #fff,
+    0 0 55px #fff,
+    0 0 70px #fff,
+    0 0 80px #fff;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+.winner-info__text {
+
 }
 
-.App-link {
-  color: #61dafb;
+.winner-info__result-info {
+    padding-left: 2px;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+html {
+    background-color: #4f4f4f;
+}
+
+.reset-button {
+    width: 12vh;
+    height: 6vh;
+    font-size: 3vh;
+    color: white;
+    border: none;
+    border-radius: calc(1vh);
+    background-color: #1d1d1d;
+}
+
+.reset-button:hover {
+    background-color: #2d2d2d;
+    cursor: pointer;
+    border: 1px solid white;
+}
+
+.board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    grid-gap: calc(0.4%);
+    width: calc(70vh);
+    height: calc(70vh);
+    margin: 0 auto;
+    border: 1px solid #000;
+    border-radius: 10px;
+    padding: 5px;
+    background-color: #1d1d1d;
+}
+
+.cell {
+    align-items: center;
+    justify-content: center;
+    align-content: center;
+    font-size: 7vh;
+    font-weight: bold;
+    border-radius: calc(5%);
+    background-color: #2d2d2d;
+    border: 1px solid #000;
+    z-index: 1;
+}
+
+.cell-dagger {
+    color: #fff;
+    text-shadow: 0 0 7px #0fa,
+    0 0 10px #fff,
+    0 0 21px #fff,
+    0 0 42px #0fa,
+    0 0 82px #0fa,
+    0 0 92px #0fa,
+    0 0 102px #0fa,
+    0 0 120px #0fa;
+}
+
+.cell-zero {
+    color: #fff;
+    text-shadow: 0 0 7px #f09,
+    0 0 10px #fff,
+    0 0 21px #fff,
+    0 0 42px #f09,
+    0 0 82px #f09,
+    0 0 92px #f09,
+    0 0 102px #f09,
+    0 0 120px #f09;
+}
+
+.cell:hover {
+    cursor: pointer;
+    background-color: #282828;
 }
