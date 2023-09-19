@@ -5,12 +5,17 @@ interface CellProps {
     onSquareClick: () => void;
 }
 
+enum Player {
+    X = 'X',
+    O = 'O',
+}
+
 const Cell: React.FC<CellProps> = ({value, onSquareClick}) => {
     let cellClass = "cell";
 
-    if (value === "O") {
+    if (value === Player.O) {
         cellClass += " cell-zero";
-    } else if (value === "X") {
+    } else if (value === Player.X) {
         cellClass += " cell-dagger";
     }
 
