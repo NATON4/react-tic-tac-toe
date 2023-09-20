@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState, useEffect } from 'react';
 import Board from "./Board";
 import './App.css';
 
@@ -8,6 +8,21 @@ function App() {
     const [tempWinningSize, setTempWinningSize] = useState(3);
     const [winningSize, setWinningSize] = useState(3);
 
+    useEffect(() => {
+        const savedBoardSize = localStorage.getItem('boardSize');
+        const savedWinningSize = localStorage.getItem('winningSize');
+
+        if (savedBoardSize) {
+            setBoardSize(parseInt(savedBoardSize));
+            setTempBoardSize(parseInt(savedBoardSize));
+        }
+
+        if (savedWinningSize) {
+            setWinningSize(parseInt(savedWinningSize));
+            setTempWinningSize(parseInt(savedWinningSize));
+        }
+    }, []);
+
     const handleSetBoardSize = () => {
         if (tempBoardSize < 3) {
             setBoardSize(3);
@@ -16,6 +31,7 @@ function App() {
         } else {
             setBoardSize(tempBoardSize);
         }
+        localStorage.setItem('boardSize', tempBoardSize.toString());
     };
 
     const handleSetWinningSize = () => {
@@ -26,11 +42,13 @@ function App() {
         } else {
             setWinningSize(tempWinningSize);
         }
+        localStorage.setItem('winningSize', tempWinningSize.toString());
     };
 
     return (
         <div className="App">
             <h1>Tic-Tac-Toe</h1>
+            <div className="game-info">
             <div>
                 <input
                     id="boardSize"
@@ -54,6 +72,7 @@ function App() {
                     onChange={(e) => setTempWinningSize(parseInt(e.target.value))}
                 />
                 <button className="board-size-button" onClick={handleSetWinningSize}>Set Winning Size</button>
+            </div>
             </div>
             <Board key={boardSize * winningSize} boardSize={boardSize} winningSize={winningSize}/>
         </div>

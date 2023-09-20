@@ -13,6 +13,7 @@ enum Player {
 const Cell: React.FC<CellProps> = ({value, onSquareClick}) => {
     let cellClass = "cell";
 
+
     if (value === Player.O) {
         cellClass += " cell-zero";
     } else if (value === Player.X) {
@@ -21,7 +22,10 @@ const Cell: React.FC<CellProps> = ({value, onSquareClick}) => {
 
     return (
         <button className={cellClass} onClick={onSquareClick}>
-            {value}
+            <svg width="100%" height="100%" viewBox="0 0 90 90">
+                <text className="cell-text" x="50%" y="55%" textAnchor="middle" dominantBaseline="middle" fontSize="400%" fill="white">{value}</text>
+            </svg>
+
         </button>
     );
 };

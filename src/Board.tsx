@@ -1,5 +1,6 @@
 import React, {useState} from 'react';
 import Cell from './Cell';
+import ModalWindows from './ModalWindow';
 
 enum Player {
     X = 'X',
@@ -11,85 +12,139 @@ interface BoardProps {
     winningSize: number;
 }
 
+interface GameState {
+    squares: string[] | null[];
+    winner: string | null;
+    nextValue: boolean;
+}
+
 const Board: React.FC<BoardProps> = ({boardSize, winningSize}) => {
-    const [nextValue, setNextValue] = useState(true);
-    const [squares, setSquares] = useState(Array(boardSize * boardSize).fill(null));
-    const [result, setResult] = useState<string | null>("?");
+    const initialSquares = loadGameState(boardSize * boardSize);
+    const [modalShown, setModalShown] = useState(false);
+    const [restartConfirmed, setRestartConfirmed] = useState(false);
+    const [squares, setSquares] = useState<string[] | null[]>(
+            (initialSquares && initialSquares.squares) || Array(boardSize * boardSize).fill(null));
+    const [nextValue, setNextValue] = useState<boolean>(
+        (initialSquares && initialSquares.nextValue) || false // Може бути баг з початковим значенням
+    );
+
+    function saveGameState(squares: (string | null)[], nextValue: boolean) {
+        const gameState = { squares, nextValue };
+        localStorage.setItem('ticTacToeGame', JSON.stringify(gameState));
+    }
+
+    function loadGameState(numSquares: number) {
+        const savedGameState = localStorage.getItem('ticTacToeGame');
+
+        if (savedGameState) {
+            const gameState = JSON.parse(savedGameState);
+
+            if (gameState.squares.length === numSquares) {
+                return { squares: gameState.squares, nextValue: gameState.nextValue };
+            }
+        }
+
+        return null;
+    }
 
     function handleReset() {
+        if (restartConfirmed) {
+            setSquares(Array(boardSize * boardSize).fill(null));
+            saveGameState(Array(boardSize * boardSize).fill(null), nextValue);
+        } else {
+            const confirmRestart = window.confirm('Ви впевнені, що хочете почати нову гру? Це скине поточний прогрес.');
+
+            if (!confirmRestart) return;
+
+            setSquares(Array(boardSize * boardSize).fill(null));
+            saveGameState(Array(boardSize * boardSize).fill(null), nextValue);
+        }
+
+        setRestartConfirmed(false);
+    }
+
+    function closeModal() {
+        setModalShown(false);
         setSquares(Array(boardSize * boardSize).fill(null));
-        setResult("?");
+        saveGameState(Array(boardSize * boardSize).fill(null), nextValue);
     }
 
     function handleClick(index: number) {
         const isCellDirty = squares[index];
-
-        if (isCellDirty) {
-            return;
-        }
+        if (isCellDirty) return;
 
         const nextSquares = squares.slice();
+        const updatedNextValue = !nextValue;
 
-        if (nextValue) {
+        if (updatedNextValue) {
             nextSquares[index] = Player.X;
         } else {
             nextSquares[index] = Player.O;
         }
 
         setSquares(nextSquares);
-        setNextValue(!nextValue);
+        setNextValue(updatedNextValue);
+
+        const winner = calculateWinner(nextSquares, boardSize, winningSize);
+        saveGameState(nextSquares, updatedNextValue);
+
+        if (winner) {
+            setTimeout(() => setModalShown(true), 50);
+        }
     }
 
     function calculateWinner(squares: (string | null)[], boardSize: number, winningSize: number) {
         const lines: number[][] = [];
 
-        for (let row = 0; row < boardSize; row++) {
-            for (let col = 0; col <= boardSize - winningSize; col++) {
-                const horizontalLine: number[] = [];
+        for (let i = 0; i < boardSize; i++) {
+            for (let j = 0; j <= boardSize - winningSize; j++) {
+                const row: number[] = [];
 
-                for (let offset = 0; offset < winningSize; offset++) {
-                    horizontalLine.push(row * boardSize + col + offset);
+                for (let k = 0; k < winningSize; k++) {
+                    row.push(i * boardSize + j + k);
                 }
 
-                lines.push(horizontalLine);
+                lines.push(row);
             }
         }
 
-        for (let col = 0; col <= boardSize - winningSize; col++) {
-            for (let row = 0; row < boardSize; row++) {
-                const verticalLine: number[] = [];
+        for (let i = 0; i <= boardSize - winningSize; i++) {
+            for (let j = 0; j < boardSize; j++) {
+                const col: number[] = [];
 
-                for (let offset = 0; offset < winningSize; offset++) {
-                    verticalLine.push((row + offset) * boardSize + col);
+                for (let k = 0; k < winningSize; k++) {
+                    col.push((i + k) * boardSize + j);
                 }
 
-                lines.push(verticalLine);
+                lines.push(col);
             }
         }
 
-        for (let row = 0; row <= boardSize - winningSize; row++) {
-            for (let col = 0; col <= boardSize - winningSize; col++) {
-                const mainDiagonal: number[] = [];
-                const counterDiagonal: number[] = [];
+        for (let i = 0; i <= boardSize - winningSize; i++) {
+            for (let j = 0; j <= boardSize - winningSize; j++) {
+                const diagonal1: number[] = [];
+                const diagonal2: number[] = [];
 
-                for (let offset = 0; offset < winningSize; offset++) {
-                    mainDiagonal.push((row + offset) * boardSize + col + offset);
-                    counterDiagonal.push((row + offset) * boardSize + col + winningSize - 1 - offset);
+                for (let k = 0; k < winningSize; k++) {
+                    diagonal1.push((i + k) * boardSize + j + k);
+                    diagonal2.push((i + k) * boardSize + j + winningSize - 1 - k);
                 }
 
-                lines.push(mainDiagonal, counterDiagonal);
+                lines.push(diagonal1, diagonal2);
             }
         }
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
-            const [start, ...rest] = line;
+            const [a, b, c, ...rest] = line;
 
-            const isWinningLine = squares[start] &&
-                rest.every((index) => squares[index] === squares[start]);
-
-            if (isWinningLine) {
-                return squares[start];
+            if (
+                squares[a]
+                && squares[a] === squares[b] &&
+                squares[a] === squares[c] &&
+                rest.every((index) => squares[index] === squares[a])
+            ) {
+                return squares[a];
             }
         }
 
@@ -100,21 +155,14 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize}) => {
 
     if (winner) {
         setTimeout(() => {
-            setResult(winner);
+            setModalShown(true);
+            saveGameState(squares, nextValue);
         }, 50);
-        setTimeout(() => {
-            handleReset();
-        }, 1000);
     }
 
     return (
-        <div>
-            <div className="winner-info">
-                <h3 className="winner-info__text">Winner: </h3>
-                <h3 className="winner-info__result-info">{result}</h3>
-            </div>
+        <div className="game-desk">
             <button className="reset-button" onClick={handleReset}>Reset</button>
-            <br/> <br/>
             <div
                 className="board"
                 style={{
@@ -123,9 +171,14 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize}) => {
                 }}
             >
                 {squares.map((value, index) => (
-                    <Cell key={index} value={value} onSquareClick={() => handleClick(index)}/>
+                    <Cell
+                        key={index}
+                        value={value}
+                        onSquareClick={() => handleClick(index)}
+                    />
                 ))}
             </div>
+            {modalShown && <ModalWindows winner={winner} onClose={() => closeModal()}/>} {}
         </div>
     );
 };
