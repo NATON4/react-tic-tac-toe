@@ -1,35 +1,47 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import Cell from './Cell';
-import ModalWindows from './ModalWindow';
 
-enum Player {
-    X = 'X',
-    O = 'O',
+enum Players {
+    firstPlayer = 'X',
+    secondPlayer = 'O',
 }
 
 interface BoardProps {
     boardSize: number;
     winningSize: number;
+    onGameEnd: (winner: string | null) => void;
 }
 
 interface GameState {
     squares: string[] | null[];
-    winner: string | null;
     nextValue: boolean;
 }
 
-const Board: React.FC<BoardProps> = ({boardSize, winningSize}) => {
+const Board: React.FC<BoardProps> = ({boardSize, winningSize, onGameEnd}) => {
     const initialSquares = loadGameState(boardSize * boardSize);
-    const [modalShown, setModalShown] = useState(false);
-    const [restartConfirmed, setRestartConfirmed] = useState(false);
     const [squares, setSquares] = useState<string[] | null[]>(
-            (initialSquares && initialSquares.squares) || Array(boardSize * boardSize).fill(null));
+        (initialSquares && initialSquares.squares) || Array(boardSize * boardSize).fill(null)
+    );
     const [nextValue, setNextValue] = useState<boolean>(
-        (initialSquares && initialSquares.nextValue) || false // Може бути баг з початковим значенням
+        (initialSquares && initialSquares.nextValue) || false
     );
 
+    window.addEventListener('storage', function (e) {
+        if (e.key === 'ticTacToeGame') {
+            const gameState = JSON.parse(e.newValue || 'null');
+            updateDataInAllTabs(gameState);
+        }
+    });
+
+    function updateDataInAllTabs(gameState: GameState | null) {
+        if (gameState) {
+            setSquares(gameState.squares);
+            setNextValue(gameState.nextValue);
+        }
+    }
+
     function saveGameState(squares: (string | null)[], nextValue: boolean) {
-        const gameState = { squares, nextValue };
+        const gameState = {squares, nextValue};
         localStorage.setItem('ticTacToeGame', JSON.stringify(gameState));
     }
 
@@ -40,7 +52,7 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize}) => {
             const gameState = JSON.parse(savedGameState);
 
             if (gameState.squares.length === numSquares) {
-                return { squares: gameState.squares, nextValue: gameState.nextValue };
+                return {squares: gameState.squares, nextValue: gameState.nextValue};
             }
         }
 
@@ -48,25 +60,13 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize}) => {
     }
 
     function handleReset() {
-        if (restartConfirmed) {
-            setSquares(Array(boardSize * boardSize).fill(null));
-            saveGameState(Array(boardSize * boardSize).fill(null), nextValue);
-        } else {
-            const confirmRestart = window.confirm('Ви впевнені, що хочете почати нову гру? Це скине поточний прогрес.');
+        const confirmRestart = window.confirm('Ви впевнені, що хочете почати нову гру? Це скине поточний прогрес.');
 
-            if (!confirmRestart) return;
+        if (!confirmRestart) return;
 
-            setSquares(Array(boardSize * boardSize).fill(null));
-            saveGameState(Array(boardSize * boardSize).fill(null), nextValue);
-        }
-
-        setRestartConfirmed(false);
-    }
-
-    function closeModal() {
-        setModalShown(false);
         setSquares(Array(boardSize * boardSize).fill(null));
-        saveGameState(Array(boardSize * boardSize).fill(null), nextValue);
+        saveGameState(Array(boardSize * boardSize).fill(null), false);
+        setNextValue(false);
     }
 
     function handleClick(index: number) {
@@ -77,9 +77,9 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize}) => {
         const updatedNextValue = !nextValue;
 
         if (updatedNextValue) {
-            nextSquares[index] = Player.X;
+            nextSquares[index] = Players.firstPlayer;
         } else {
-            nextSquares[index] = Player.O;
+            nextSquares[index] = Players.secondPlayer;
         }
 
         setSquares(nextSquares);
@@ -89,11 +89,33 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize}) => {
         saveGameState(nextSquares, updatedNextValue);
 
         if (winner) {
-            setTimeout(() => setModalShown(true), 50);
+            onGameEnd(winner);
+            setSquares(Array(boardSize * boardSize).fill(null));
+            saveGameState(Array(boardSize * boardSize).fill(null), false);
         }
     }
 
     function calculateWinner(squares: (string | null)[], boardSize: number, winningSize: number) {
+        const lines = getAllWinningLines(boardSize, winningSize);
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const [a, b, c, ...rest] = line;
+
+            if (
+                squares[a] &&
+                squares[a] === squares[b] &&
+                squares[a] === squares[c] &&
+                rest.every((index) => squares[index] === squares[a])
+            ) {
+                return squares[a];
+            }
+        }
+
+        return null;
+    }
+
+    function getAllWinningLines(boardSize: number, winningSize: number) {
         const lines: number[][] = [];
 
         for (let i = 0; i < boardSize; i++) {
@@ -134,35 +156,14 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize}) => {
             }
         }
 
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            const [a, b, c, ...rest] = line;
-
-            if (
-                squares[a]
-                && squares[a] === squares[b] &&
-                squares[a] === squares[c] &&
-                rest.every((index) => squares[index] === squares[a])
-            ) {
-                return squares[a];
-            }
-        }
-
-        return null;
-    }
-
-    const winner = calculateWinner(squares, boardSize, winningSize);
-
-    if (winner) {
-        setTimeout(() => {
-            setModalShown(true);
-            saveGameState(squares, nextValue);
-        }, 50);
+        return lines;
     }
 
     return (
         <div className="game-desk">
-            <button className="reset-button" onClick={handleReset}>Reset</button>
+            <button className="reset-button" onClick={handleReset}>
+                Reset
+            </button>
             <div
                 className="board"
                 style={{
@@ -171,14 +172,9 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize}) => {
                 }}
             >
                 {squares.map((value, index) => (
-                    <Cell
-                        key={index}
-                        value={value}
-                        onSquareClick={() => handleClick(index)}
-                    />
+                    <Cell key={index} value={value} onSquareClick={() => handleClick(index)}/>
                 ))}
             </div>
-            {modalShown && <ModalWindows winner={winner} onClose={() => closeModal()}/>} {}
         </div>
     );
 };

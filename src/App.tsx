@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Board from "./Board";
+import ModalWindow from "./ModalWindow";
 import './App.css';
 
 function App() {
@@ -7,10 +8,14 @@ function App() {
     const [boardSize, setBoardSize] = useState(3);
     const [tempWinningSize, setTempWinningSize] = useState(3);
     const [winningSize, setWinningSize] = useState(3);
+    const [winner, setWinner] = useState<string | null>(null);
+    const [modalShown, setModalShown] = useState(false);
 
     useEffect(() => {
         const savedBoardSize = localStorage.getItem('boardSize');
         const savedWinningSize = localStorage.getItem('winningSize');
+        const savedWinner = localStorage.getItem('winner');
+        const savedModalShown = localStorage.getItem('modalShown');
 
         if (savedBoardSize) {
             setBoardSize(parseInt(savedBoardSize));
@@ -21,6 +26,20 @@ function App() {
             setWinningSize(parseInt(savedWinningSize));
             setTempWinningSize(parseInt(savedWinningSize));
         }
+
+        if (savedWinner) {
+            setWinner(savedWinner);
+        }
+
+        if (savedModalShown) {
+            setModalShown(savedModalShown === 'true');
+        }
+
+        window.addEventListener('storage', handleStorageChange);
+
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+        };
     }, []);
 
     const handleSetBoardSize = () => {
@@ -34,6 +53,20 @@ function App() {
         localStorage.setItem('boardSize', tempBoardSize.toString());
     };
 
+    const handleStorageChange = (e: StorageEvent) => {
+        if (e.key === 'boardSize') {
+            setBoardSize(parseInt(e.newValue || '3'));
+            setTempBoardSize(parseInt(e.newValue || '3'));
+        } else if (e.key === 'winningSize') {
+            setWinningSize(parseInt(e.newValue || '3'));
+            setTempWinningSize(parseInt(e.newValue || '3'));
+        } else if (e.key === 'winner') {
+            setWinner(e.newValue);
+        } else if (e.key === 'modalShown') {
+            setModalShown(e.newValue === 'true');
+        }
+    };
+
     const handleSetWinningSize = () => {
         if (tempWinningSize < 3) {
             setWinningSize(3);
@@ -45,36 +78,58 @@ function App() {
         localStorage.setItem('winningSize', tempWinningSize.toString());
     };
 
+    const handleCloseModal = () => {
+        setModalShown(false);
+        localStorage.removeItem('winner');
+        localStorage.setItem('modalShown', 'false'); // При закритті модального вікна зберігаємо стан модалки
+    };
+
     return (
         <div className="App">
             <h1>Tic-Tac-Toe</h1>
             <div className="game-info">
-            <div>
-                <input
-                    id="boardSize"
-                    className="board-size-input"
-                    type="number"
-                    value={tempBoardSize}
-                    min="3"
-                    max="20"
-                    onChange={(e) => setTempBoardSize(parseInt(e.target.value))}
-                />
-                <button className="board-size-button" onClick={handleSetBoardSize}>Set Board Size</button>
+                <div>
+                    <input
+                        id="boardSize"
+                        className="board-size-input"
+                        type="number"
+                        value={tempBoardSize}
+                        min="3"
+                        max="20"
+                        onChange={(e) => setTempBoardSize(parseInt(e.target.value))}
+                    />
+                    <button className="board-size-button" onClick={handleSetBoardSize}>Set Board Size</button>
+                </div>
+                <div>
+                    <input
+                        id="winningSize"
+                        className="board-size-input"
+                        type="number"
+                        value={tempWinningSize}
+                        min="3"
+                        max={boardSize}
+                        onChange={(e) => setTempWinningSize(parseInt(e.target.value))}
+                    />
+                    <button className="board-size-button" onClick={handleSetWinningSize}>Set Winning Size</button>
+                </div>
             </div>
-            <div>
-                <input
-                    id="winningSize"
-                    className="board-size-input"
-                    type="number"
-                    value={tempWinningSize}
-                    min="3"
-                    max={boardSize}
-                    onChange={(e) => setTempWinningSize(parseInt(e.target.value))}
-                />
-                <button className="board-size-button" onClick={handleSetWinningSize}>Set Winning Size</button>
-            </div>
-            </div>
-            <Board key={boardSize * winningSize} boardSize={boardSize} winningSize={winningSize}/>
+            <Board
+                key={boardSize * winningSize * tempWinningSize * tempBoardSize}
+                boardSize={boardSize}
+                winningSize={winningSize}
+                onGameEnd={(winner) => {
+                    setWinner(winner);
+                    setModalShown(true);
+                    if (winner) {
+                        localStorage.setItem('winner', winner);
+                        localStorage.setItem('modalShown', 'true');
+                    } else {
+                        localStorage.removeItem('winner');
+                        localStorage.setItem('modalShown', 'false');
+                    }
+                }}
+            />
+            {modalShown && (<ModalWindow winner={winner} onClose={handleCloseModal}/>)}
         </div>
     );
 }
