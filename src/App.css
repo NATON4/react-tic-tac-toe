@@ -195,3 +195,9 @@ html {
     gap: 10px;
     align-items: center;
 }
+
+.control-buttons {
+    display: flex;
+    flex-direction: row;
+    gap: calc(1vh);
+}

@@ -3,6 +3,8 @@ import Board from "./Board";
 import ModalWindow from "./ModalWindow";
 import './App.css';
 
+let serverPolling: NodeJS.Timer | null = null;
+
 function App() {
     const [tempBoardSize, setTempBoardSize] = useState(3);
     const [boardSize, setBoardSize] = useState(3);
@@ -27,13 +29,9 @@ function App() {
             setTempWinningSize(parseInt(savedWinningSize));
         }
 
-        if (savedWinner) {
-            setWinner(savedWinner);
-        }
+        if (savedWinner) { setWinner(savedWinner); }
 
-        if (savedModalShown) {
-            setModalShown(savedModalShown === 'true');
-        }
+        if (savedModalShown) { setModalShown(savedModalShown === 'true'); }
 
         window.addEventListener('storage', handleStorageChange);
 
@@ -41,6 +39,86 @@ function App() {
             window.removeEventListener('storage', handleStorageChange);
         };
     }, []);
+
+    const backendUrl = "http://192.168.10.10:4000";
+
+    function reloadSizeData() {
+        fetch(`${backendUrl}/game-size`)
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error(`Network response was not ok: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then((data) => {
+                localStorage.setItem('winningSize', data.sizeToWin.toString());
+                localStorage.setItem('boardSize', data.boardSize.toString());
+                setTempBoardSize(data.boardSize);
+                setTempWinningSize(data.sizeToWin);
+                setBoardSize(data.boardSize);
+                setWinningSize(data.sizeToWin);
+                /*const test = localStorage.getItem('boardSize');
+                console.log(test);*/
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+    }
+
+    function reloadWinningData() {
+        fetch(`${backendUrl}/winner-info`)
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error(`Network response was not ok: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then((data) => {
+                localStorage.setItem('winner', data.winner.toString());
+                localStorage.setItem('modalShown', data.modalShown.toString());
+                /*setTempBoardSize(data.boardSize);
+                setTempWinningSize(data.sizeToWin.toString());*/
+                setWinner(data.winner);
+                setModalShown(data.modalShown);
+                /*const test = localStorage.getItem('boardSize');
+                console.log(test);*/
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+    }
+
+    useEffect(() => {
+        if (!serverPolling) {
+            setInterval(reloadSizeData, 1000);
+            setInterval(reloadWinningData, 300);
+        }
+
+    }, []);
+
+    function sendBoardSizeData() {
+        const savedBoardSize = localStorage.getItem('boardSize');
+        const savedWinningSize = localStorage.getItem('winningSize');
+
+        const gameSizeData = {
+            sizeToWin: savedWinningSize,
+            boardSize: savedBoardSize,
+        };
+
+        fetch(`${backendUrl}/update-size-data`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', },
+            body: JSON.stringify(gameSizeData),
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error(`Network response was not ok: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then((updatedData) => { console.log('Updated Data:', updatedData); })
+            .catch((error) => { console.error('Error:', error); });
+    }
 
     const handleSetBoardSize = () => {
         if (tempBoardSize < 3) {
@@ -51,6 +129,8 @@ function App() {
             setBoardSize(tempBoardSize);
         }
         localStorage.setItem('boardSize', tempBoardSize.toString());
+
+        sendBoardSizeData();
     };
 
     const handleStorageChange = (e: StorageEvent) => {
@@ -67,6 +147,32 @@ function App() {
         }
     };
 
+    function sendWinnerData() {
+        const gameWinner = localStorage.getItem('winner');
+        const modalIsShown = localStorage.getItem('modalShown');
+
+        const winnerData = {
+            winner: gameWinner,
+            modalShown: modalIsShown,
+        };
+
+        fetch(`${backendUrl}/update-winner-data`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(winnerData),
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error(`Network response was not ok: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then((updatedData) => { console.log('Updated Data:', updatedData); })
+            .catch((error) => { console.error('Error:', error); });
+    }
+
     const handleSetWinningSize = () => {
         if (tempWinningSize < 3) {
             setWinningSize(3);
@@ -76,12 +182,15 @@ function App() {
             setWinningSize(tempWinningSize);
         }
         localStorage.setItem('winningSize', tempWinningSize.toString());
+
+        sendBoardSizeData();
     };
 
     const handleCloseModal = () => {
         setModalShown(false);
         localStorage.removeItem('winner');
-        localStorage.setItem('modalShown', 'false'); // При закритті модального вікна зберігаємо стан модалки
+        localStorage.setItem('modalShown', 'false');
+        sendWinnerData();
     };
 
     return (

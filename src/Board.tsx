@@ -6,14 +6,19 @@ enum Players {
     secondPlayer = 'O',
 }
 
-interface BoardProps {
+type BoardProps = {
     boardSize: number;
     winningSize: number;
     onGameEnd: (winner: string | null) => void;
 }
 
-interface GameState {
+type GameState = {
     squares: string[] | null[];
+    nextValue: boolean;
+}
+
+type GameInfo = {
+    squares: (string | null)[];
     nextValue: boolean;
 }
 
@@ -33,6 +38,88 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize, onGameEnd}) => {
         }
     });
 
+    const backendUrl = "http://192.168.10.10:4000"
+
+    function sendWinnerData() {
+        const gameWinner = localStorage.getItem('winner');
+        const modalIsShown = localStorage.getItem('modalShown');
+
+        const winnerData = {
+            winner: gameWinner,
+            modalShown: modalIsShown,
+        };
+
+        fetch(`${backendUrl}/update-winner-data`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(winnerData),
+        })
+            .then((response) => {
+                if (!response.ok) { throw new Error(`Network response was not ok: ${response.status}`); }
+                return response.json();
+            })
+            .then((updatedData) => { console.log('Updated Data:', updatedData); })
+            .catch((error) => { console.error('Error:', error); });
+    }
+
+    function sendGameState(gameState: GameInfo) {
+        fetch(`${backendUrl}/update-game-state`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ gameState }),
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error(`Network response was not ok: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then((updatedData) => { console.log('Updated Data:', updatedData); })
+            .catch((error) => { console.error('Error:', error); });
+    }
+
+    function showGameSizeData() {
+        fetch(`${backendUrl}/game-size`)
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error(`Network response was not ok: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then((data) => {
+                console.log('Game Size Data:', data);
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+    }
+
+    function showGameState() {
+        fetch(`${backendUrl}/game-state`)
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error(`Network response was not ok: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then((data) => { console.log('Game State Data:', data); })
+            .catch((error) => { console.error('Error:', error); });
+    }
+
+    function showWinnerData() {
+        fetch(`${backendUrl}/winner-info`)
+            .then((response) => {
+                if (!response.ok) { throw new Error(`Network response was not ok: ${response.status}`); }
+                return response.json();
+            })
+            .then((data) => { console.log('Winner Data:', data); })
+            .catch((error) => { console.error('Error:', error); });
+    }
+
     function updateDataInAllTabs(gameState: GameState | null) {
         if (gameState) {
             setSquares(gameState.squares);
@@ -43,6 +130,7 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize, onGameEnd}) => {
     function saveGameState(squares: (string | null)[], nextValue: boolean) {
         const gameState = {squares, nextValue};
         localStorage.setItem('ticTacToeGame', JSON.stringify(gameState));
+        sendGameState(gameState);
     }
 
     function loadGameState(numSquares: number) {
@@ -69,6 +157,30 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize, onGameEnd}) => {
         setNextValue(false);
     }
 
+    function updateCells() {
+        fetch(`${backendUrl}/game-state`)
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error(`Network response was not ok: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then((data) => {
+                setSquares(data.squares);
+                setNextValue(data.nextValue);
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+    }
+
+    useEffect(() => {
+        setInterval(updateCells, 100);
+        setSquares(Array(boardSize * boardSize).fill(null));
+        saveGameState(Array(boardSize * boardSize).fill(null), false);
+        setNextValue(false);
+    }, []);
+
     function handleClick(index: number) {
         const isCellDirty = squares[index];
         if (isCellDirty) return;
@@ -82,14 +194,12 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize, onGameEnd}) => {
             nextSquares[index] = Players.secondPlayer;
         }
 
-        setSquares(nextSquares);
-        setNextValue(updatedNextValue);
-
         const winner = calculateWinner(nextSquares, boardSize, winningSize);
         saveGameState(nextSquares, updatedNextValue);
 
         if (winner) {
             onGameEnd(winner);
+            sendWinnerData();
             setSquares(Array(boardSize * boardSize).fill(null));
             saveGameState(Array(boardSize * boardSize).fill(null), false);
         }
@@ -161,9 +271,20 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize, onGameEnd}) => {
 
     return (
         <div className="game-desk">
-            <button className="reset-button" onClick={handleReset}>
-                Reset
-            </button>
+            <div className="control-buttons">
+                <button className="reset-button" onClick={handleReset}>
+                    Reset
+                </button>
+                <button className="reset-button" onClick={showGameSizeData}>
+                    Get GI
+                </button>
+                <button className="reset-button" onClick={showWinnerData}>
+                    Get WI
+                </button>
+                <button className="reset-button" onClick={showGameState}>
+                    Get GS
+                </button>
+            </div>
             <div
                 className="board"
                 style={{
