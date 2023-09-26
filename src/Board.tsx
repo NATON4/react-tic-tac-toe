@@ -22,7 +22,10 @@ type GameInfo = {
     nextValue: boolean;
 }
 
+let serverPollingBoard: NodeJS.Timer | null = null;
+
 const Board: React.FC<BoardProps> = ({boardSize, winningSize, onGameEnd}) => {
+    console.log("Reloaded board");
     const initialSquares = loadGameState(boardSize * boardSize);
     const [squares, setSquares] = useState<string[] | null[]>(
         (initialSquares && initialSquares.squares) || Array(boardSize * boardSize).fill(null)
@@ -57,11 +60,17 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize, onGameEnd}) => {
             body: JSON.stringify(winnerData),
         })
             .then((response) => {
-                if (!response.ok) { throw new Error(`Network response was not ok: ${response.status}`); }
+                if (!response.ok) {
+                    throw new Error(`Network response was not ok: ${response.status}`);
+                }
                 return response.json();
             })
-            .then((updatedData) => { console.log('Updated Data:', updatedData); })
-            .catch((error) => { console.error('Error:', error); });
+            .then((updatedData) => {
+                console.log('Updated Data:', updatedData);
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
     }
 
     function sendGameState(gameState: GameInfo) {
@@ -70,7 +79,7 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize, onGameEnd}) => {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ gameState }),
+            body: JSON.stringify({gameState}),
         })
             .then((response) => {
                 if (!response.ok) {
@@ -78,8 +87,12 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize, onGameEnd}) => {
                 }
                 return response.json();
             })
-            .then((updatedData) => { console.log('Updated Data:', updatedData); })
-            .catch((error) => { console.error('Error:', error); });
+            .then((updatedData) => {
+                console.log('Updated Data:', updatedData);
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
     }
 
     function showGameSizeData() {
@@ -106,18 +119,29 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize, onGameEnd}) => {
                 }
                 return response.json();
             })
-            .then((data) => { console.log('Game State Data:', data); })
-            .catch((error) => { console.error('Error:', error); });
+            .then((data) => {
+                console.log('Game State Data:', data);
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
     }
 
     function showWinnerData() {
+        console.log("winner data");
         fetch(`${backendUrl}/winner-info`)
             .then((response) => {
-                if (!response.ok) { throw new Error(`Network response was not ok: ${response.status}`); }
+                if (!response.ok) {
+                    throw new Error(`Network response was not ok: ${response.status}`);
+                }
                 return response.json();
             })
-            .then((data) => { console.log('Winner Data:', data); })
-            .catch((error) => { console.error('Error:', error); });
+            .then((data) => {
+                console.log('Winner Data:', data);
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
     }
 
     function updateDataInAllTabs(gameState: GameState | null) {
@@ -166,8 +190,15 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize, onGameEnd}) => {
                 return response.json();
             })
             .then((data) => {
-                setSquares(data.squares);
-                setNextValue(data.nextValue);
+                if (data.squares !== squares) {
+                    console.log("Effect of squares change");
+                    setSquares(data.squares);
+                    setNextValue(data.nextValue);
+                }
+                else {
+                    console.log("Nothing");
+                }
+
             })
             .catch((error) => {
                 console.error('Error:', error);
@@ -175,13 +206,21 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize, onGameEnd}) => {
     }
 
     useEffect(() => {
-        setInterval(updateCells, 100);
+        if (!serverPollingBoard) {
+            setInterval(updateCells, 500);
+            console.log("pollingOnlyOnce");
+        }
+    }, []);
+
+    useEffect(() => {
+        console.log("Effect of cells");
         setSquares(Array(boardSize * boardSize).fill(null));
         saveGameState(Array(boardSize * boardSize).fill(null), false);
         setNextValue(false);
-    }, []);
+    }, [boardSize]);
 
     function handleClick(index: number) {
+
         const isCellDirty = squares[index];
         if (isCellDirty) return;
 
@@ -203,6 +242,9 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize, onGameEnd}) => {
             setSquares(Array(boardSize * boardSize).fill(null));
             saveGameState(Array(boardSize * boardSize).fill(null), false);
         }
+
+        setSquares(nextSquares);
+        setNextValue(!nextValue);
     }
 
     function calculateWinner(squares: (string | null)[], boardSize: number, winningSize: number) {
