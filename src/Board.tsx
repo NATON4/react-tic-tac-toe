@@ -1,7 +1,7 @@
 import React, {useState, useEffect} from 'react';
 import Cell from './Cell';
 
-enum Players {
+export enum Players {
     firstPlayer = 'X',
     secondPlayer = 'O',
 }
@@ -25,7 +25,6 @@ type GameInfo = {
 let serverPollingBoard: NodeJS.Timer | null = null;
 
 const Board: React.FC<BoardProps> = ({boardSize, winningSize, onGameEnd}) => {
-    console.log("Reloaded board");
     const initialSquares = loadGameState(boardSize * boardSize);
     const [squares, setSquares] = useState<string[] | null[]>(
         (initialSquares && initialSquares.squares) || Array(boardSize * boardSize).fill(null)
@@ -66,7 +65,6 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize, onGameEnd}) => {
                 return response.json();
             })
             .then((updatedData) => {
-                console.log('Updated Data:', updatedData);
             })
             .catch((error) => {
                 console.error('Error:', error);
@@ -88,7 +86,6 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize, onGameEnd}) => {
                 return response.json();
             })
             .then((updatedData) => {
-                console.log('Updated Data:', updatedData);
             })
             .catch((error) => {
                 console.error('Error:', error);
@@ -104,7 +101,6 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize, onGameEnd}) => {
                 return response.json();
             })
             .then((data) => {
-                console.log('Game Size Data:', data);
             })
             .catch((error) => {
                 console.error('Error:', error);
@@ -120,7 +116,6 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize, onGameEnd}) => {
                 return response.json();
             })
             .then((data) => {
-                console.log('Game State Data:', data);
             })
             .catch((error) => {
                 console.error('Error:', error);
@@ -128,7 +123,6 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize, onGameEnd}) => {
     }
 
     function showWinnerData() {
-        console.log("winner data");
         fetch(`${backendUrl}/winner-info`)
             .then((response) => {
                 if (!response.ok) {
@@ -137,7 +131,6 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize, onGameEnd}) => {
                 return response.json();
             })
             .then((data) => {
-                console.log('Winner Data:', data);
             })
             .catch((error) => {
                 console.error('Error:', error);
@@ -191,12 +184,10 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize, onGameEnd}) => {
             })
             .then((data) => {
                 if (data.squares !== squares) {
-                    console.log("Effect of squares change");
                     setSquares(data.squares);
                     setNextValue(data.nextValue);
                 }
                 else {
-                    console.log("Nothing");
                 }
 
             })
@@ -208,16 +199,14 @@ const Board: React.FC<BoardProps> = ({boardSize, winningSize, onGameEnd}) => {
     useEffect(() => {
         if (!serverPollingBoard) {
             setInterval(updateCells, 500);
-            console.log("pollingOnlyOnce");
         }
     }, []);
 
     useEffect(() => {
-        console.log("Effect of cells");
         setSquares(Array(boardSize * boardSize).fill(null));
         saveGameState(Array(boardSize * boardSize).fill(null), false);
         setNextValue(false);
-    }, [boardSize]);
+    }, [boardSize, winningSize]);
 
     function handleClick(index: number) {
 

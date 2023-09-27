@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from 'react';
-import Board from "./Board";
+import Board, {Players} from "./Board";
 import ModalWindow from "./ModalWindow";
 import './App.css';
 
@@ -7,15 +7,18 @@ let serverPolling: NodeJS.Timer | null = null;
 let newServerPolling: NodeJS.Timer | null = null;
 
 function App() {
-    const savBoardSize = localStorage.getItem('boardSize');
-    const savWinningSize = localStorage.getItem('winningSize');
+    //const [boardSizeFromBack, setBoardSizeFromBack] = useState(3);
+    //const [charsToWinFromBack, setCharsToWinFromBack] = useState(3);
 
-    const [tempBoardSize, setTempBoardSize] = useState(3 || savBoardSize);
-    const [boardSize, setBoardSize] = useState(3 || savBoardSize);
-    const [tempWinningSize, setTempWinningSize] = useState(3 || savWinningSize);
-    const [winningSize, setWinningSize] = useState(3 || savWinningSize);
-    const [winner, setWinner] = useState<string | null>(null);
-    const [modalShown, setModalShown] = useState(false);
+    //const [tempBoardSize, setTempBoardSize] = useState(boardSizeFromBack || 3);
+    const [boardSize, setBoardSize] = useState(3);
+    //const [tempWinningSize, setTempWinningSize] = useState(charsToWinFromBack || 3);
+    const [charsToWin, setCharsToWin] = useState(3);
+    //const [winner, setWinner] = useState<string | null>(null);
+    //const [isModalVisible, setIsModalVisible] = useState(false);
+
+    let winner: Players | null | string = null;
+    let isModalVisible: boolean = false;
 
     useEffect(() => {
         const savedBoardSize = localStorage.getItem('boardSize');
@@ -25,20 +28,22 @@ function App() {
 
         if (savedBoardSize) {
             setBoardSize(parseInt(savedBoardSize));
-            setTempBoardSize(parseInt(savedBoardSize));
+            //setTempBoardSize(parseInt(savedBoardSize));
         }
 
         if (savedWinningSize) {
-            setWinningSize(parseInt(savedWinningSize));
-            setTempWinningSize(parseInt(savedWinningSize));
+            setCharsToWin(parseInt(savedWinningSize));
+            //setTempWinningSize(parseInt(savedWinningSize));
         }
 
         if (savedWinner) {
-            setWinner(savedWinner);
+            winner = savedWinner;
+            //setWinner(savedWinner);
         }
 
         if (savedModalShown) {
-            setModalShown(savedModalShown === 'true');
+            isModalVisible = true;
+            //setIsModalVisible(savedModalShown === 'true');
         }
 
         window.addEventListener('storage', handleStorageChange);
@@ -51,7 +56,6 @@ function App() {
     const backendUrl = "http://192.168.10.10:4000";
 
     function checkGameSize() {
-        console.log("game-size");
         fetch(`${backendUrl}/game-size`)
             .then((response) => {
                 if (!response.ok) {
@@ -61,22 +65,21 @@ function App() {
                 return response.json();
             })
             .then((data) => {
-                let frontSizeToWin = winningSize.toString();
+                let frontSizeToWin = charsToWin.toString();
                 let frontBoardSize = boardSize.toString();
-                // || data.boardSize !== frontBoardSize
-                // Виходить, що воно робить ререндеринг компонента, де в useState вставляється 3, та потім
-                // знову перевіряє цю штуку, де знову 5 !== 3
-                if (data.boardSize !== frontSizeToWin) {
-                    localStorage.setItem('winningSize', data.sizeToWin.toString());
+                console.log(data.boardSize, frontBoardSize);
+                if (data.boardSize !== frontBoardSize || data.winningSize !== frontSizeToWin) {
                     localStorage.setItem('boardSize', data.boardSize.toString());
+                    localStorage.setItem('winningSize', data.sizeToWin.toString());
 
-                    // А в локал сторедж все заноситься правильно
-                    //alert(data.sizeToWin.toString() + data.boardSize.toString());
+                    //setTempBoardSize(data.boardSize);
+                    //setTempWinningSize(data.sizeToWin);
 
-                    setTempBoardSize(data.boardSize);
-                    setTempWinningSize(data.sizeToWin);
                     setBoardSize(data.boardSize);
-                    setWinningSize(data.sizeToWin);
+                    setCharsToWin(data.sizeToWin);
+
+                } else {
+                    alert("nothing");
                 }
             })
             .catch((error) => {
@@ -88,10 +91,11 @@ function App() {
         if (!serverPolling) {
             serverPolling = setInterval(checkGameSize, 500);
         }
-    }, []);
+
+        return () => serverPolling ? clearInterval(serverPolling) : void 0;
+    }, [boardSize, checkGameSize, charsToWin]);
 
     function reloadWinner() {
-        console.log("winner-info");
         fetch(`${backendUrl}/winner-info`)
             .then((response) => {
                 if (!response.ok) {
@@ -101,13 +105,17 @@ function App() {
                 return response.json();
             })
             .then((data) => {
-                if (data.winner !== winner || data.modalShown !== modalShown) {
+                let doesModalShown = data.modalShown.toString();
+                if (data.winner !== winner || data.winner === "") {
                     localStorage.setItem('winner', data.winner.toString());
-                    localStorage.setItem('modalShown', data.modalShown.toString());
+                    localStorage.setItem('modalShown', doesModalShown);
 
-                    setWinner(data.winner);
-                    setModalShown(data.modalShown);
+                    winner = data.winner;
+                    //setWinner(data.winner);
+                    isModalVisible = data.modalShown;
+                    //setIsModalVisible(data.modalShown);
                 }
+
             })
             .catch((error) => {
                 console.error('Error:', error);
@@ -116,11 +124,11 @@ function App() {
 
     useEffect(() => {
         if (!newServerPolling) {
-            newServerPolling = setInterval(reloadWinner, 1000);
+            newServerPolling = setInterval(reloadWinner, 500);
         }
-    }, []);
+    }, [winner, isModalVisible, reloadWinner]);
 
-        function sendBoardSizeData() {
+    function sendBoardSizeData() {
         const savedBoardSize = localStorage.getItem('boardSize');
         const savedWinningSize = localStorage.getItem('winningSize');
 
@@ -141,7 +149,6 @@ function App() {
                 return response.json();
             })
             .then((updatedData) => {
-                console.log('Updated Data:', updatedData);
             })
             .catch((error) => {
                 console.error('Error:', error);
@@ -149,14 +156,15 @@ function App() {
     }
 
     const handleSetBoardSize = () => {
-        if (tempBoardSize < 3) {
+        if (boardSize < 3) {
             setBoardSize(3);
-        } else if (tempBoardSize > 20) {
+        } else if (boardSize > 20) {
             setBoardSize(20);
         } else {
-            setBoardSize(tempBoardSize);
+            setBoardSize(boardSize);
         }
-        localStorage.setItem('boardSize', tempBoardSize.toString());
+
+        localStorage.setItem('boardSize', boardSize.toString());
 
         sendBoardSizeData();
     };
@@ -164,14 +172,18 @@ function App() {
     const handleStorageChange = (e: StorageEvent) => {
         if (e.key === 'boardSize') {
             setBoardSize(parseInt(e.newValue || '3'));
-            setTempBoardSize(parseInt(e.newValue || '3'));
+            //setTempBoardSize(parseInt(e.newValue || '3'));
+            checkGameSize();
         } else if (e.key === 'winningSize') {
-            setWinningSize(parseInt(e.newValue || '3'));
-            setTempWinningSize(parseInt(e.newValue || '3'));
+            setCharsToWin(parseInt(e.newValue || '3'));
+            //setTempWinningSize(parseInt(e.newValue || '3'));
+            checkGameSize();
         } else if (e.key === 'winner') {
-            setWinner(e.newValue);
+            winner = e.newValue;
+            //setWinner(e.newValue);
         } else if (e.key === 'modalShown') {
-            setModalShown(e.newValue === 'true');
+            //setIsModalVisible(e.newValue === 'true');
+            isModalVisible = true;
         }
     };
 
@@ -198,7 +210,6 @@ function App() {
                 return response.json();
             })
             .then((updatedData) => {
-                console.log('Updated Data:', updatedData);
             })
             .catch((error) => {
                 console.error('Error:', error);
@@ -206,20 +217,21 @@ function App() {
     }
 
     const handleSetWinningSize = () => {
-        if (tempWinningSize < 3) {
-            setWinningSize(3);
-        } else if (tempWinningSize > 20) {
-            setWinningSize(20);
+        if (charsToWin < 3) {
+            setCharsToWin(3);
+        } else if (charsToWin > 20) {
+            setCharsToWin(20);
         } else {
-            setWinningSize(tempWinningSize);
+            setCharsToWin(charsToWin);
         }
-        localStorage.setItem('winningSize', tempWinningSize.toString());
+        localStorage.setItem('winningSize', charsToWin.toString());
 
         sendBoardSizeData();
     };
 
     const handleCloseModal = () => {
-        setModalShown(false);
+        //setIsModalVisible(false);
+        isModalVisible = false;
         localStorage.removeItem('winner');
         localStorage.setItem('modalShown', 'false');
         sendWinnerData();
@@ -234,11 +246,11 @@ function App() {
                         id="boardSize"
                         className="board-size-input"
                         type="number"
-                        value={tempBoardSize}
+                        value={boardSize}
                         min="3"
                         max="20"
                         onChange={(e) => {
-                            setTempBoardSize(parseInt(e.target.value));
+                            setBoardSize(parseInt(e.target.value));
                         }}
                     />
                     <button className="board-size-button" onClick={handleSetBoardSize}>Set Board Size</button>
@@ -248,11 +260,11 @@ function App() {
                         id="winningSize"
                         className="board-size-input"
                         type="number"
-                        value={tempWinningSize}
+                        value={charsToWin}
                         min="3"
                         max={boardSize}
                         onChange={(e) => {
-                            setTempWinningSize(parseInt(e.target.value))
+                            setCharsToWin(parseInt(e.target.value))
                         }}
                     />
                     <button className="board-size-button" onClick={handleSetWinningSize}>Set Winning Size</button>
@@ -260,12 +272,14 @@ function App() {
                 </div>
             </div>
             <Board
-                key={boardSize * winningSize * tempWinningSize * tempBoardSize}
+                key={boardSize}
                 boardSize={boardSize}
-                winningSize={winningSize}
+                winningSize={charsToWin}
                 onGameEnd={(winner) => {
-                    setWinner(winner);
-                    setModalShown(true);
+                    //setWinner(winner);
+                    winner = winner;
+                    isModalVisible = true;
+                    //setIsModalVisible(true);
                     if (winner) {
                         localStorage.setItem('winner', winner);
                         localStorage.setItem('modalShown', 'true');
@@ -275,7 +289,7 @@ function App() {
                     }
                 }}
             />
-            {modalShown && (<ModalWindow winner={winner} onClose={handleCloseModal}/>)}
+            {isModalVisible && (<ModalWindow winner={winner} onClose={handleCloseModal}/>)}
         </div>
     );
 }
